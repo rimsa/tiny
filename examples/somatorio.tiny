@@ -1,0 +1,9 @@
+# calcula o somatório de números obtidos pela entrada
+program
+    sum = 0;
+    i = read;
+    while i > 0 do
+        sum = sum + i;
+        i = read;
+    done;
+    output sum;
