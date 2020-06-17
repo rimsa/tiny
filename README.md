@@ -427,4 +427,264 @@ corretamente e chegou-se a um fim de arquivo sem erros léxicos.
 
 ### Analisador sintático
 
+O analisador sintático é responsável por verificar se os *tokens* de um programa
+se encontram em uma ordem válida.
+Para isso, é definida uma gramática com regras de como os *tokens* são
+organizados na linguagem.
+
+Para consultar a implementação separada do analisador sintático, basta fazer
+*checkout* do *branch* **sintatico**.
+
+    $ git checkout sintatico
+
+#### Gramática
+
+Gramáticas são normalmente expressas no formato EBNF (Extended Backus-Naur
+Form), um tipo de gramática livre de contexto.
+Nela é possível definir produções opcionais--aquelas separadas por `|` ou entre
+`[` e `]`--, repetições de zero ou mais vezes--aquelas entre `{` e `}`--, e
+agrupamentos de expressões--aquelas entre `(` e `)`.
+A gramática da linguagem Tiny é mostrada a seguir nesse formato:
+
+```
+<program>   ::= program <cmdlist>
+<cmdlist>   ::= <cmd> { <cmd> }
+<cmd>       ::= (<assign> | <output> | <if> | <while>) ;
+<assign>    ::= <var> = <intexpr>
+<output>    ::= output <intexpr>
+<if>        ::= if <boolexpr> then <cmdlist> [ else <cmdlist> ] done
+<while>     ::= while <boolexpr> do <cmdlist> done
+<boolexpr>  ::= false | true |
+				  not <boolexpr> |
+                  <intterm> (== | != | < | > | <= | >=) <intterm>
+<intexpr>   ::= [ + | - ] <intterm> [ (+ | - | * | / | %) <intterm> ]
+<intterm>   ::= <var> | <const> | read
+<var>       ::= id
+<const>     ::= number
+```
+
+Os nomes entre chaves chevron, `<` e `>`, são símbolos não terminais, ou seja,
+regras de produções; já os outros são símbolos terminais, ou símbolos da
+linguagem.
+A regra de partida é dada pela primeira regra `<program>`.
+
+Essa gramática foi especialmente desenhada como LL(1), um tipo de gramática
+que permite a criação de um parser recursivo descendente olhando apenas um
+*token* a frente (*1-symbol lookahead*).
+
+#### Parser
+
+O parser depende do analisador léxico (`LexicalAnalysis lex`) para fornecer
+os *tokens* para um programa da entrada.
+O parser mantém sempre um lexema ativo (`Lexeme current`), ou seja, o *token*
+a ser processado.
+
+```Java
+public class SyntaticAnalysis {
+
+    private LexicalAnalysis lex;
+    private Lexeme current;
+	
+    public SyntaticAnalysis(LexicalAnalysis lex) {
+        this.lex = lex;
+        this.current = lex.nextToken();
+    }
+	
+    ...
+}
+```
+
+O analisador sintático possui um método `advance` que passa o lexema atual
+para o próximo (`current = lex.nextToken();`).
+Também possui um método `eat` que verifica o casamento do lexema atual com um
+tipo de *token* esperado (`if (type == current.type) {`).
+Em caso positivo, deve-se avançar para o próximo lexema (`advance();`), caso
+contrário deve-se exibir um erro.
+
+```Java
+private void advance() {
+	current = lex.nextToken();
+}
+
+private void eat(TokenType type) {
+	if (type == current.type) {
+		advance();
+	} else {
+		showError();
+	}
+}
+```
+
+Existem três tipos de erros sintático para essa linguagem: (1) **lexema
+inválido** produzido pelo analisador léxico; (2) **fim de arquivo inesperado**
+produzido pelo analisador léxico ou sintático; (3) e **lexema não esperado**
+caso o próximo *token* não seja o esperado.
+O interpretador exibe uma mensagem de acordo com o tipo de erro com o número
+da linha onde ele ocorreu e pode incluir o *token* formado (exceto para fim
+de arquivo inesperado).
+No caso dessa implementação, o parsing é imediatamente interrompido ao se
+encontrar o primeiro erro sintático (`System.exit(1);`).
+
+```Java
+private void showError() {
+	System.out.printf("%02d: ", lex.getLine());
+
+	switch (current.type) {
+		case INVALID_TOKEN:
+			System.out.printf("Lexema inválido [%s]\n", current.token);
+			break;
+		case UNEXPECTED_EOF:
+		case END_OF_FILE:
+			System.out.printf("Fim de arquivo inesperado\n");
+			break;
+		default:
+			System.out.printf("Lexema não esperado [%s]\n", current.token);
+			break;
+	}
+
+	System.exit(1);
+}
+```
+
+O parsing deve implementar um procedimento para cada nome de regra (lado
+esquerdo da produção).
+É interessante manter a descrição da regra completa como um cabeçalho
+comentado antes de cada método.
+
+```Java
+// <program>   ::= program <cmdlist>
+private void procProgram() { ... }
+
+// <cmdlist>   ::= <cmd> { <cmd> }
+private void procCmdList() { ... }
+
+// <cmd>       ::= (<assign> | <output> | <if> | <while>) ;
+private void procCmd() { ... }
+
+// <assign>    ::= <var> = <intexpr>
+private void procAssign() { ... }
+
+// <output>    ::= output <intexpr>
+private void procOutput() { ... }
+
+// <if>        ::= if <boolexpr> then <cmdlist> [ else <cmdlist> ] done
+private void procIf() { ... }
+
+// <while>     ::= while <boolexpr> do <cmdlist> done
+private void procWhile() { ... }
+
+// <boolexpr>  ::= false | true |
+//                 not <boolexpr> |
+//                 <intterm> (== | != | < | > | <= | >=) <intterm>
+private void procBoolExpr() { ... }
+
+// <intexpr>   ::= [ + | - ] <intterm> [ (+ | - | * | / | %) <intterm> ]
+private void procIntExpr() { ... }
+
+// <intterm>   ::= <var> | <const> | read
+private void procIntTerm() { ... }
+
+// <var>       ::= id
+private void procVar() { ... }
+
+// <const>     ::= number
+private void procConst() { ... }
+```
+
+Existe um método especial `start` para dar início ao processo de parsing.
+Ele tem uma chamada para a regra de partida (`<program>`) e um casamento de
+*token* com o fim de arquivo normal/esperado.
+
+```Java
+public void start() {
+	procProgram();
+	eat(TokenType.END_OF_FILE);
+}
+```
+
+Para implementar uma regra deve-se olhar as produções do seu lado direito.
+Por exemplo, para a regra `<while>` tem-se `while <boolexpr> do <cmdlist> done`.
+Para os símbolos não terminais, entre chaves chevron (ex.: `<boolexpr>`),
+deve-se chamar o procedimento respectivo: `procBoolExpr();`.
+Para os símbolos terminais (ex.: `while`) deve-se chamar casar o padrão com o
+tipo de *token* respectivo: `eat(TokenType.WHILE);`.
+Assim, a implementação do regra `<while>` é dada a seguir.
+
+```Java
+// <while>     ::= while <boolexpr> do <cmdlist> done
+private void procWhile() {
+	eat(TokenType.WHILE);
+	procBoolExpr();
+	eat(TokenType.DO);
+	procCmdList();
+	eat(TokenType.DONE);
+}
+```
+
+Quando se tem uma regra com várias opções, separados pelo símbolo `|` na
+gramática, deve-se verificar o tipo do lexema atual para verificar como
+proceder.
+Repare que, nos casos onde existe a produção na esquerda é uma regra, deve-se
+olhar nessa regra qual *token* usar--para chamar a regra `<var>`, deve-se olhar
+dentro dessa regra qual é primeiro *token* de sua produção, nesse caso `id` cujo
+tipo do *token* é `TokenType.VAR`.
+O mesmo vale para a regra `<const>`, onde `number` tem como tipo de *token*
+`TokenType.NUMBER`.
+
+```Java
+// <intterm>   ::= <var> | <const> | read
+private void procIntTerm() {
+	if (current.type == TokenType.VAR) {
+		procVar();
+	} else if (current.type == TokenType.NUMBER) {
+		procConst();
+	} else {
+		eat(TokenType.READ);
+	}
+}
+```
+
+Quando se tem uma regra com um trecho opcional, entre `[` e `]`, deve-se usar
+a mesma estratégia da implementação anterior.
+Note que, se verificado que o *token* é do tipo `else`
+(`if (current.type == TokenType.ELSE) {`), basta avançar para o próximo lexema
+(`advance();`).
+
+```Java
+// <if>        ::= if <boolexpr> then <cmdlist> [ else <cmdlist> ] done
+private void procIf() {
+	eat(TokenType.IF);
+	procBoolExpr();
+	eat(TokenType.THEN);
+	procCmdList();
+	if (current.type == TokenType.ELSE) {
+		advance();
+		procCmdList();
+	}
+	eat(TokenType.DONE);
+}
+```
+
+Por fim, regras que possuem repetições de zero ou mais vezes, entre os símbolos
+`{` e `}`, são implementadas como laços.
+Repare que, para a regra `<cmdlist>` que possui repetição da regra `<cmd>`,
+deve-se olhar quais *tokens* podem atingir essa regra, que nesse caso são:
+`TokenType.VAR`, `TokenType.OUTPUT`, `TokenType.IF` e `TokenType.WHILE`.
+
+```Java
+// <cmdlist>   ::= <cmd> { <cmd> }
+private void procCmdList() {
+	procCmd();
+	while (current.type == TokenType.VAR ||
+			current.type == TokenType.OUTPUT ||
+			current.type == TokenType.IF ||
+			current.type == TokenType.WHILE) {
+		procCmd();
+	}
+}
+```
+
+Para detalhes da implementação das outras regras favor consultar o analisador
+sintático disponível no código do repositório.
+
 ### Interpretador
