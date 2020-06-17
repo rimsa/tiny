@@ -688,3 +688,194 @@ Para detalhes da implementação das outras regras favor consultar o analisador
 sintático disponível no código do repositório.
 
 ### Interpretador
+
+O interpretador é responsável por modelar o comportamento de um programa.
+Um diagrama de classes é dado na seção [modelo](#modelo) e como ele deve ser
+usado é mostrado na seção de [implementação](#implementação).
+
+#### Modelo
+
+O interpretador foi modelado de acordo com o diagrama de classes a seguir.
+Esse modelo pode ser divido em duas partes: **comandos** e **expressões**.
+Comandos executam uma ação e não produzem uma saída, ex.: comandos de atribução,
+condicionais (`if`), de repetição (`while`), etc.
+Já as expressões são avaliadas e produzem um resultado, ex.: expressão,
+aritmética, expressão relacional, etc.
+O modelo separa essas duas partes nos pacotes: `command` e `expr`.
+Os comandos devem herdar da classe abstrata `Command` e implementar o método
+`void execute()`.
+As expressões inteiras devem herdar de `IntExpr` e implementar o método
+`int expr()`, enquanto as expressões lógicas devem herdar de `BoolExpr` e
+implementar o método `boolean expr()`.
+Todas as classes base incluem o número da linha onde suas construções aparecem
+no programa fonte.
+
+<p align="center">
+  <img src="images/interpretador.png?raw=true" width="936" height="650">
+</p>
+
+Cada classe desse modelo deve implementar um comportamento, conforme explicado
+nas tabelas a seguir para cada uma das classes base:
+
+- `Command`:
+  | *Classe*         | *Comportamento* |
+  | ---------------- | --------------- |
+  | `BlocksCommand`  | Executar cada um dos comandos da lista do bloco em sequência |
+  | `AssignCommand`  | Atribuir o resultado de uma expressão inteira em uma variável |
+  | `OutputCommand`  | Mostrar a saída de uma expressão inteira na tela |
+  | `IfCommand`      | Executar o bloco *then* se a expressão for verdadeira, caso contrário executar o bloco *else* se esse existir |
+  | `WhileCommand`   | Executar o bloco do corpo da repetição enquanto a expressão for verdadeira |
+
+- `BoolExpr`:
+  | *Classe*         | *Comportamento* |
+  | ---------------- | --------------- |
+  | `ConstBoolExpr`  | Obter um valor lógico para s constantes verdadeiro ou falso |
+  | `SingleBootExpr` | Comparar dois valores inteiros de acordo com uma operação lógica |
+  | `NotBoolExpr`    | Negar uma expressão lógica |
+
+- `IntExpr`:
+  | *Classe*         | *Comportamento* |
+  | ---------------- | --------------- |
+  | `ConstIntExpr`   | Obter o valor de uma constante inteira |
+  | `NegIntExpr`     | Negar uma expressão inteira |
+  | `ReadIntExpr`    | Ler um valor inteiro dado por um usuário pela entrada de teclado |
+  | `BinaryIntExpr`  | Realizar uma operação inteira entre dois valores inteiros |
+  | `Variable`       | Armazenar o valor inteiro em uma variável |
+
+#### Implementação
+
+Cada regra da gramática deve instanciar um objeto do modelo dado com os
+argumentos necessários para sua execução.
+A seguir é detalhado quais classes devem ser retornadas para todas as regras.
+As regras que podem retornar mais de um tipo de objeto devem usar a classe
+base genérica.
+Por exemplo, a regra `<cmd>` pode retornar um comando de atribuição,
+condicional, de repetição ou de saída, portanto deve-se usar a classe base
+`Command`.
+
+| *Regra*      | *Retorno*       |
+| ------------ | --------------- |
+| `<program>`  | `BlocksCommand` |
+| `<cmdlist>`  | `BlocksCommand` |
+| `<cmd>`      | `Command`       |
+| `<assign>`   | `AssignCommand` |
+| `<output>`   | `OutputCommand` |
+| `<if>`       | `IfCommand`     |
+| `<while>`    | `WhileCommand`  |
+| `<boolexpr>` | `BoolExpr`      |
+| `<intexpr>`  | `IntExpr`       |
+| `<intterm>`  | `IntExpr`       |
+| `<var>`      | `Variable`      |
+| `<const>`    | `ConstIntExpr`  |
+
+Considere a implementação da regra `<while>` que chama a regra `<boolexpr>` para
+obter a expressão condicional (retorna uma instância de `BoolExpr`) e que
+chama a regra `<cmdlist>` com uma lista de comandos (retorna uma instância
+de `Command`).
+Esses são os dois objetos necessários para a construção do objeto `WhileCommand`
+conforme definido no modelo.
+Além disso, para construir esse objeto deve-se obter o número da linha onde
+ele se encontra no programa fonte.
+O número da linha deve ser obtido (`int line = lex.getLine();`) sempre depois do
+casamento do primeiro *token* da regra (nesse caso `eat(TokenType.WHILE);`).
+Assim, o procedimento completo para essa regra é dado a seguir.
+
+```Java
+// <while>     ::= while <boolexpr> do <cmdlist> done
+private WhileCommand procWhile() {
+    eat(TokenType.WHILE);
+    int line = lex.getLine();
+
+    BoolExpr cond = procBoolExpr();
+    eat(TokenType.DO);
+    Command cmds = procCmdList();
+    eat(TokenType.DONE);
+
+    return new WhileCommand(line, cond, cmds);
+}
+```
+
+A implementação das classe dos modelos devem: (1) inicializar os atribuitos da
+classe com os objetos passados pelo construtor; e (2) implementar o método
+abstrato de sua classe base de acordo com o comportamento esperado dado de sua
+regra.
+Por exemplo, a implementação da classe `CommandWhile` é dada a seguir:
+
+```Java
+public class WhileCommand extends Command {
+
+    private BoolExpr cond;
+    private Command cmds;
+
+    public WhileCommand(int line, BoolExpr cond, Command cmds) {
+        super(line);
+        this.cond = cond;
+        this.cmds = cmds;
+    }
+
+    public void execute() {
+        while (cond.expr())
+            cmds.execute();
+    }
+}
+```
+
+O mesmo vale para a implementação de uma expressão.
+Por exemplo para a classe `BinaryIntExpr`:
+
+```Java
+public class BinaryIntExpr extends IntExpr {
+
+    private IntExpr left;
+    private IntOp op;
+    private IntExpr right;
+
+    public BinaryIntExpr(int line, IntExpr left, IntOp op, IntExpr right) {
+        super(line);
+        this.left = left;
+        this.op = op;
+        this.right = right;
+    }
+
+    public int expr() {
+        int v1 = left.expr();
+        int v2 = right.expr();
+
+        switch (op) {
+            case Add:
+                return v1 + v2;
+            case Sub:
+                return v1 - v2;
+            case Mul:
+                return v1 * v2;
+            case Div:
+                return v1 / v2;
+            case Mod:
+            default:
+                return v1 % v2;
+        }
+    } 
+}
+```
+
+As regras `<var>` e `<const>` necessitam de atenção especial: elas dependem do
+valor do *token* para sua utilização.
+Para a regra `<var>` deve-se saber qual o nome da variável referenciada,
+enquanto para a regra `<const>` qual o valor da constante inteira utilizada.
+Para isso é preciso salvar o *token* em uma variável antes de passar para o
+próximo lexema.
+
+```Java
+// <var>       ::= id
+private Variable procVar() {
+    String name = current.token;
+    eat(TokenType.VAR);
+
+    return Variable.instance(name);
+}
+```
+
+Por exemplo, para a implementação da regra `<var>` deve-se obter o nome da
+variável (`String name = current.token;`) antes do casamento de padrão que irá
+passar para o próximo lexema (`eat(TokenType.VAR);`).
+Depois, basta retornar uma instânica dessa variável com esse nome.
