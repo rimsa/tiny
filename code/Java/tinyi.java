@@ -1,3 +1,4 @@
+import interpreter.command.BlocksCommand;
 import lexical.LexicalAnalysis;
 import syntatic.SyntaticAnalysis;
 
@@ -10,7 +11,9 @@ public class tinyi {
 
 		try (LexicalAnalysis l = new LexicalAnalysis(args[0])) {
 			SyntaticAnalysis s = new SyntaticAnalysis(l);
-			s.start();
+
+			BlocksCommand program = s.start();
+			program.execute();
 		} catch (Exception e) {
 			System.err.println("Internal error: " + e.getMessage());
 		}
