@@ -54,64 +54,155 @@ public class SyntaticAnalysis {
 
     // <program>   ::= program <cmdlist>
     private void procProgram() {
-        // TODO: Implement me!
+        eat(TokenType.PROGRAM);
+        procCmdList();
     }
 
     // <cmdlist>   ::= <cmd> { <cmd> }
     private void procCmdList() {
-        // TODO: Implement me!
+        procCmd();
+        while (current.type == TokenType.VAR ||
+                current.type == TokenType.OUTPUT ||
+                current.type == TokenType.IF ||
+                current.type == TokenType.WHILE) {
+            procCmd();
+        }
     }
 
     // <cmd>       ::= (<assign> | <output> | <if> | <while>) ;
     private void procCmd() {
-        // TODO: Implement me!
+        if (current.type == TokenType.VAR)
+            procAssign();
+        else if (current.type == TokenType.OUTPUT)
+            procOutput();
+        else if (current.type == TokenType.IF)
+            procIf();
+        else if (current.type == TokenType.WHILE)
+            procWhile();
+        else
+            showError();
+
+        eat(TokenType.SEMICOLON);
     }
 
     // <assign>    ::= <var> = <intexpr>
     private void procAssign() {
-        // TODO: Implement me!
+        procVar();
+        eat(TokenType.ASSIGN);
+        procIntExpr();
     }
 
     // <output>    ::= output <intexpr>
     private void procOutput() {
-        // TODO: Implement me!
+        eat(TokenType.OUTPUT);
+        procIntExpr();
     }
 
     // <if>        ::= if <boolexpr> then <cmdlist> [ else <cmdlist> ] done
     private void procIf() {
-        // TODO: Implement me!
+        eat(TokenType.IF);
+        procBoolExpr();
+        eat(TokenType.THEN);
+        procCmdList();
+        if (current.type == TokenType.ELSE) {
+            advance();
+            procCmdList();
+        }
+        eat(TokenType.DONE);
     }
 
     // <while>     ::= while <boolexpr> do <cmdlist> done
     private void procWhile() {
-        // TODO: Implement me!
+        eat(TokenType.WHILE);
+        procBoolExpr();
+        eat(TokenType.DO);
+        procCmdList();
+        eat(TokenType.DONE);
     }
 
     // <boolexpr>  ::= false | true |
     //                 not <boolexpr> |
     //                 <intterm> (== | != | < | > | <= | >=) <intterm>
     private void procBoolExpr() {
-        // TODO: Implement me!
+        if (current.type == TokenType.FALSE) {
+            advance();
+        } else if (current.type == TokenType.TRUE) {
+            advance();
+        } else if (current.type == TokenType.NOT) {
+            advance();
+            procBoolExpr();
+        } else {
+            procIntTerm();
+
+            switch (current.type) {
+                case EQUAL:
+                case NOT_EQUAL:
+                case LOWER:
+                case GREATER:
+                case LOWER_EQUAL:
+                case GREATER_EQUAL:
+                    advance();
+                    break;
+                default:
+                    showError();
+                    break;
+            }
+
+            procIntTerm();
+        }
     }
 
     // <intexpr>   ::= [ + | - ] <intterm> [ (+ | - | * | / | %) <intterm> ]
     private void procIntExpr() {
-        // TODO: Implement me!
+        if (current.type == TokenType.ADD) {
+            advance();
+        } else if (current.type == TokenType.SUB) {
+            advance();
+        }
+
+        procIntTerm();
+
+        if (current.type == TokenType.ADD |
+                current.type == TokenType.SUB |
+                current.type == TokenType.MUL |
+                current.type == TokenType.DIV |
+                current.type == TokenType.MOD) {
+            switch (current.type) {
+                case ADD:
+                case SUB:
+                case MUL:
+                case DIV:
+                case MOD:
+                    advance();
+                    break;
+                default:
+                    // unrecheable
+                    break;
+            }
+
+            procIntTerm();
+        }
     }
 
     // <intterm>   ::= <var> | <const> | read
     private void procIntTerm() {
-        // TODO: Implement me!
+        if (current.type == TokenType.VAR) {
+            procVar();
+        } else if (current.type == TokenType.NUMBER) {
+            procConst();
+        } else {
+            eat(TokenType.READ);
+        }
     }
 
     // <var>       ::= id
     private void procVar() {
-        // TODO: Implement me!
+        eat(TokenType.VAR);
     }
 
     // <const>     ::= number
     private void procConst() {
-        // TODO: Implement me!
+        eat(TokenType.NUMBER);
     }
 
 }
