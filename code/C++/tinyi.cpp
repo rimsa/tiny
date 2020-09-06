@@ -1,7 +1,9 @@
 #include <iostream>
 #include <cstdlib>
+
 #include "lexical/LexicalAnalysis.h"
 #include "syntatic/SyntaticAnalysis.h"
+#include "interpreter/command/Command.h"
 
 int main(int argc, char* argv[]) {
 	if (argc != 2) {
@@ -14,7 +16,10 @@ int main(int argc, char* argv[]) {
 		LexicalAnalysis l(argv[1]);
 		SyntaticAnalysis s(l);
 
-		s.start();
+		Command* cmd = s.start();
+		cmd->execute();
+
+		delete cmd;
 	} catch (const std::string& error) {
 		std::cerr << "error: " << error << std::endl;
 	}

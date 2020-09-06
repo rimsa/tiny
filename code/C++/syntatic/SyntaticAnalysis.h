@@ -3,12 +3,24 @@
 
 #include "../lexical/LexicalAnalysis.h"
 
+class IntExpr;
+class ConstIntExpr;
+class Variable;
+class BoolExpr;
+
+class Command;
+class AssignCommand;
+class BlocksCommand;
+class IfCommand;
+class OutputCommand;
+class WhileCommand;
+
 class SyntaticAnalysis {
 	public:
 		SyntaticAnalysis(LexicalAnalysis& lex);
 		virtual ~SyntaticAnalysis();
 
-		void start();
+		Command* start();
 
 	private:
 		LexicalAnalysis& m_lex;
@@ -18,18 +30,18 @@ class SyntaticAnalysis {
 		void eat(enum TokenType type);
 		void showError();
 
-		void procProgram();
-		void procCmdList();
-		void procCmd();
-		void procAssign();
-		void procOutput();
-		void procIf();
-		void procWhile();
-		void procBoolExpr();
-		void procIntExpr();
-		void procIntTerm();
-		void procVar();
-		void procConst();
+		Command* procProgram();
+		BlocksCommand* procCmdList();
+		Command* procCmd();
+		AssignCommand* procAssign();
+		OutputCommand* procOutput();
+		IfCommand* procIf();
+		WhileCommand* procWhile();
+		BoolExpr* procBoolExpr();
+		IntExpr* procIntExpr();
+		IntExpr* procIntTerm();
+		Variable* procVar();
+		ConstIntExpr* procConst();
 
 };
 
