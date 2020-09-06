@@ -1,0 +1,3 @@
+program
+  x = read;
+  output x;

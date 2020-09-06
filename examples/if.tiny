@@ -1,0 +1,7 @@
+program
+    x = read;
+    if x < 10 then
+        output 0;
+    else
+        output 1;
+    done;

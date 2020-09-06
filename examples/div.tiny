@@ -1,0 +1,4 @@
+program
+  x = read;
+  y = read;
+  output x / y;
