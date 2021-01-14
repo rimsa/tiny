@@ -455,8 +455,8 @@ A gramática da linguagem Tiny é mostrada a seguir nesse formato:
 <if>        ::= if <boolexpr> then <cmdlist> [ else <cmdlist> ] done
 <while>     ::= while <boolexpr> do <cmdlist> done
 <boolexpr>  ::= false | true |
-				  not <boolexpr> |
-                  <intterm> (== | != | < | > | <= | >=) <intterm>
+                not <boolexpr> |
+                <intterm> (== | != | < | > | <= | >=) <intterm>
 <intexpr>   ::= [ + | - ] <intterm> [ (+ | - | * | / | %) <intterm> ]
 <intterm>   ::= <var> | <const> | read
 <var>       ::= id
