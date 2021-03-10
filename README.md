@@ -5,7 +5,7 @@ Essa é uma linguagem simples, utilizada para exercitar os conceitos necessário
 para a disciplina de linguagens de programação do CEFET-MG.
 Essa implementação pode ser usada como referência para o desenvolvimento do
 primeiro trabalho prático dessa disciplina
-(https://dcc.ufmg.br/~rimsa/page/classes/decom009/#homeworks).
+(http://rimsa.com.br/page/classes/decom009/#homeworks).
 
 ## Características da linguagem
 
