@@ -6,6 +6,8 @@
 
 LexicalAnalysis::LexicalAnalysis(const char* filename) : m_line(1) {
 	m_input = fopen(filename, "r");
+	if (!m_input)
+		throw std::string("Unable to open file");
 }
 
 LexicalAnalysis::~LexicalAnalysis() {
